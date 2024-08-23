@@ -17,19 +17,26 @@
 Top-level functions should be added to `project.scripts` in `pyproject.toml`.
 """
 
+from absl import app
+from absl import flags
+
 from tpu_info import device
 from tpu_info import metrics
 import grpc
 import rich.console
 import rich.table
 
+FLAGS = flags.FLAGS
+
+flags.DEFINE_boolean('debug', False, 'Print helpful debugging info.')
 
 def _bytes_to_gib(size: int) -> float:
   return size / (1 << 30)
 
 
-def print_chip_info():
+def print_chip_info(debug: bool):
   """Print local TPU devices and libtpu runtime metrics."""
+
   # TODO(wcromar): Merge all of this info into one table
   chip_type, count = device.get_local_chips()
   if not chip_type:
@@ -71,17 +78,19 @@ def print_chip_info():
   except grpc.RpcError as e:
     # TODO(wcromar): libtpu should start this server automatically
     if e.code() == grpc.StatusCode.UNAVAILABLE:  # pytype: disable=attribute-error
-      print(
-          "Libtpu metrics unavailable. Did you start a workload with "
-          "`TPU_RUNTIME_METRICS_PORTS=8431,8432,8433,8434`?"
-      )
+      if debug:
+        print(
+            "Libtpu metrics unavailable. Did you start a workload with "
+            "`TPU_RUNTIME_METRICS_PORTS=8431,8432,8433,8434`?"
+        )
       # TODO(wcromar): Point to public documentation once released
       return
     else:
       raise e
 
-  # TODO(wcromar): take alternative ports as a flag
-  print("Connected to libtpu at grpc://localhost:8431...")
+  if debug:
+    # TODO(wcromar): take alternative ports as a flag
+    print("Connected to libtpu at grpc://localhost:8431...")
   for chip in device_usage:
     table.add_row(
         str(chip.device_id),
@@ -91,3 +100,10 @@ def print_chip_info():
     )
 
   console.print(table)
+
+def print_chip_info_with_flags(argv):
+  del argv
+  print_chip_info(FLAGS.debug)
+
+def run_absl_app():
+  app.run(print_chip_info_with_flags)

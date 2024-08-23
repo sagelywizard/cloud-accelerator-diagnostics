@@ -48,7 +48,7 @@ class CliTest(absltest.TestCase):
         return_value=chip_usage,
     ):
       with contextlib.redirect_stdout(io.StringIO()) as f:
-        cli.print_chip_info()
+        cli.print_chip_info(debug=True)
 
       output = f.getvalue()
 
@@ -71,7 +71,7 @@ class CliTest(absltest.TestCase):
   def test_print_chip_info_no_chips(self):
     with mock.patch.object(device, "get_local_chips", return_value=(None, 0)):
       with contextlib.redirect_stdout(io.StringIO()) as f:
-        cli.print_chip_info()
+        cli.print_chip_info(debug=True)
 
       output = f.getvalue()
 
@@ -93,7 +93,7 @@ class CliTest(absltest.TestCase):
         side_effect=FakeRpcError,
     ):
       with contextlib.redirect_stdout(io.StringIO()) as f:
-        cli.print_chip_info()
+        cli.print_chip_info(debug=True)
 
       output = f.getvalue()
       self.assertIn("Libtpu metrics unavailable.", output)
