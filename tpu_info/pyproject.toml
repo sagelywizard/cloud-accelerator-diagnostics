@@ -32,7 +32,7 @@ test = [
 ]
 
 [project.scripts]
-tpu-info = "tpu_info.cli:print_chip_info"
+tpu-info = "tpu_info.cli:run_absl_app"
 
 [tool.hatch.build]
 exclude = [
