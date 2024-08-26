@@ -58,3 +58,8 @@ commands = [
 ]
 artifacts = []
 clean_artifacts = false
+
+[tool.hatch.envs.dev]
+extra-dependencies = [
+  "absl-py"
+]
