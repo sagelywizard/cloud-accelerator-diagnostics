@@ -29,6 +29,7 @@ GOOGLE_PCI_VENDOR_ID = "0x1ae0"
 class TpuChip(enum.Enum):
   """TPU chip versions and basic specs."""
 
+  @enum.nonmember
   class Info(typing.NamedTuple):
     """Specs for a specific TPU chip version."""
 
