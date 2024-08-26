@@ -29,12 +29,15 @@ import rich.table
 FLAGS = flags.FLAGS
 
 flags.DEFINE_boolean('debug', False, 'Print helpful debugging info.')
+flags.DEFINE_integer('port', 8431, 'The port of the TPU metrics gRPC service.')
 
 def _bytes_to_gib(size: int) -> float:
   return size / (1 << 30)
 
+def print_chip_info_json():
+  pass
 
-def print_chip_info(debug: bool):
+def print_chip_info(debug: bool, port: int=8431):
   """Print local TPU devices and libtpu runtime metrics."""
 
   # TODO(wcromar): Merge all of this info into one table
@@ -74,7 +77,7 @@ def print_chip_info(debug: bool):
   table.add_column("Duty cycle", justify="right")
 
   try:
-    chip_usage = metrics.get_chip_usage(chip_type)
+    chip_usage = metrics.get_chip_usage(chip_type, addr=f"localhost:{port}")
   except grpc.RpcError as e:
     # TODO(wcromar): libtpu should start this server automatically
     if e.code() == grpc.StatusCode.UNAVAILABLE:  # pytype: disable=attribute-error
@@ -89,8 +92,7 @@ def print_chip_info(debug: bool):
       raise e
 
   if debug:
-    # TODO(wcromar): take alternative ports as a flag
-    print("Connected to libtpu at grpc://localhost:8431...")
+    print(f"Connected to libtpu at grpc://localhost:{port}...")
   for chip in chip_usage:
     duty_cycle_str = f"{chip.duty_cycle_pct:.2f}%"
     for core in chip.core_usage:
@@ -108,13 +110,13 @@ def print_chip_info(debug: bool):
 
 def print_chip_info_with_flags(argv):
   """print_chip_info_with_flags passes flags to print_chip_info.
-
+  
   Why separate print_chip_info_with_flags and print_chip_info? This is useful
   for testing. We can test the main logic of print_chip_info without requiring
   absl handle any flag parsing.
   """
   del argv
-  print_chip_info(FLAGS.debug)
+  print_chip_info(FLAGS.debug, FLAGS.port)
 
 def run_absl_app():
   """run_absl_app is the main entrypoint for the tpu-info CLI."""
