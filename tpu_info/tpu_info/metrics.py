@@ -15,7 +15,6 @@
 """Client library for libtpu runtime metrics."""
 
 import enum
-import itertools
 import typing
 from typing import List
 
@@ -34,18 +33,26 @@ class MetricName(enum.Enum):
   DUTY_CYCLE_PCT = "tpu.runtime.tensorcore.dutycycle.percent"
 
 
-class Usage(typing.NamedTuple):
-  """Usage measurements for a TPU device."""
+class CoreUsage(typing.NamedTuple):
+  """Usage measurements for a TPU core."""
 
-  device_id: int
+  core_id: int
   memory_usage: int
   total_memory: int
+
+
+class ChipUsage(typing.NamedTuple):
+  """Usage measurements for a TPU chip."""
+
+  core_usage: list[CoreUsage]
+  # Duty cycle is reported per-chip, not per-core.
   duty_cycle_pct: float
+
 
 
 def get_chip_usage(
     chip_type: device.TpuChip, addr: str = "localhost:8431"
-) -> List[Usage]:
+) -> List[ChipUsage]:
   """Gets usage statistics for all attached TPU devices.
 
   Args:
@@ -70,27 +77,26 @@ def get_chip_usage(
 
   totals = sorted_metric_response(MetricName.TOTAL_MEMORY)
   usages = sorted_metric_response(MetricName.MEMORY_USAGE)
+  # Duty cycle is always measured per-chip, while memory is measured per-core.
   duty_cycle_pct = sorted_metric_response(MetricName.DUTY_CYCLE_PCT)
 
-  # Duty cycle is always measured per-chip, while memory is measured per-core.
-  # Repeat if necessary so these responses are the same length.
-  duty_cycle_pct_per_core = list(
-      itertools.chain.from_iterable(
-          itertools.repeat(d, chip_type.value.accelerators_per_chip)
-          for d in duty_cycle_pct
-      )
-  )
-
   assert (
-      len(totals) == len(usages) == len(duty_cycle_pct_per_core)
+      len(totals) == len(usages) == len(duty_cycle_pct) * chip_type.value.accelerators_per_chip
   ), "Metrics not found for all chips"
 
-  return [
-      Usage(
-          u.attribute.value.int_attr,
-          u.gauge.as_int,
-          t.gauge.as_int,
-          d.gauge.as_double,
-      )
-      for u, t, d in zip(usages, totals, duty_cycle_pct_per_core)
-  ]
+  usage = []
+  for chip_idx in range(len(duty_cycle_pct)):
+    chip_usage = ChipUsage(
+      core_usage=[],
+      duty_cycle_pct=duty_cycle_pct[chip_idx].gauge.as_double,
+    )
+    for core_idx in range(chip_type.value.accelerators_per_chip):
+      chip_usage.core_usage.append(
+        CoreUsage(
+          core_id=usages[chip_idx * chip_type.value.accelerators_per_chip + core_idx].attribute.value.int_attr,
+          memory_usage=usages[chip_idx * chip_type.value.accelerators_per_chip + core_idx].gauge.as_int,
+          total_memory=totals[chip_idx * chip_type.value.accelerators_per_chip + core_idx].gauge.as_int,
+        )
+       )
+    usage.append(chip_usage)
+  return usage
