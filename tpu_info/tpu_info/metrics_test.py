@@ -130,27 +130,29 @@ class TestMetrics(parameterized.TestCase):
                   metrics.MetricName.MEMORY_USAGE: list(range(8)),
                   # Duty cycle is reported per-chip
                   metrics.MetricName.DUTY_CYCLE_PCT: [
-                      100.0 / (i + 1) for i in range(4)
+                      50.0 / (i + 1) for i in range(4)
                   ],
               },
           ),
       ],
   )
   def test_metrics(self, chip_type: device.TpuChip, responses):
+    expected = []
     with self._fake_tpu_metrics(responses) as fake_libtpu_addr:
-      expected = [
-          metrics.Usage(i, m, t, d)
-          for i, (m, t, d) in enumerate(
-              zip(
-                  responses[metrics.MetricName.MEMORY_USAGE],
-                  responses[metrics.MetricName.TOTAL_MEMORY],
-                  itertools.chain.from_iterable(
-                      itertools.repeat(d, chip_type.value.accelerators_per_chip)
-                      for d in responses[metrics.MetricName.DUTY_CYCLE_PCT]
-                  ),
-              )
-          )
-      ]
+      for chip_idx, duty_cycle_pct in enumerate(responses[metrics.MetricName.DUTY_CYCLE_PCT]):
+        chip_usage = metrics.ChipUsage(
+            duty_cycle_pct=duty_cycle_pct * chip_type.value.accelerators_per_chip,
+            core_usage=[]
+        )
+        for core_offset in range(chip_type.value.accelerators_per_chip):
+          core_id = chip_idx * chip_type.value.accelerators_per_chip + core_offset
+          core_usage = metrics.CoreUsage(
+            core_id=core_id,
+            memory_usage=responses[metrics.MetricName.MEMORY_USAGE][core_id],
+            total_memory=responses[metrics.MetricName.TOTAL_MEMORY][core_id],
+           )
+          chip_usage.core_usage.append(core_usage)
+        expected.append(chip_usage)
 
       self.assertListEqual(
           metrics.get_chip_usage(chip_type, fake_libtpu_addr), expected

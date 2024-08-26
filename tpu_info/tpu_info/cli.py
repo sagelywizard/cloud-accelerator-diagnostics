@@ -74,7 +74,7 @@ def print_chip_info(debug: bool):
   table.add_column("Duty cycle", justify="right")
 
   try:
-    device_usage = metrics.get_chip_usage(chip_type)
+    chip_usage = metrics.get_chip_usage(chip_type)
   except grpc.RpcError as e:
     # TODO(wcromar): libtpu should start this server automatically
     if e.code() == grpc.StatusCode.UNAVAILABLE:  # pytype: disable=attribute-error
@@ -91,13 +91,18 @@ def print_chip_info(debug: bool):
   if debug:
     # TODO(wcromar): take alternative ports as a flag
     print("Connected to libtpu at grpc://localhost:8431...")
-  for chip in device_usage:
-    table.add_row(
-        str(chip.device_id),
-        f"{_bytes_to_gib(chip.memory_usage):.2f} GiB /"
-        f" {_bytes_to_gib(chip.total_memory):.2f} GiB",
-        f"{chip.duty_cycle_pct:.2f}%",
-    )
+  for chip in chip_usage:
+    duty_cycle_str = f"{chip.duty_cycle_pct:.2f}%"
+    for core in chip.core_usage:
+      table.add_row(
+          str(core.core_id),
+          f"{_bytes_to_gib(core.memory_usage):.2f} GiB /"
+          f" {_bytes_to_gib(core.total_memory):.2f} GiB",
+          duty_cycle_str,
+      )
+      # Only print duty cycle on the first core. Why? Duty cycle is only
+      # reported per-chip, so unfortunately we don't have the per-core data.
+      duty_cycle_str = ""
 
   console.print(table)
 

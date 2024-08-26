@@ -33,10 +33,10 @@ class CliTest(absltest.TestCase):
         "/dev/accel3": 901,
     }
     chip_usage = [
-        metrics.Usage(0, 0, 34088157184, 1.0),
-        metrics.Usage(1, 0, 34088157184, 2.05),
-        metrics.Usage(2, 0, 34088157184, 3.055),
-        metrics.Usage(3, 0, 34088157184, 4.001),
+        metrics.ChipUsage([metrics.CoreUsage(0, 0, 34088157184)], 1.0),
+        metrics.ChipUsage([metrics.CoreUsage(1, 0, 34088157184)], 2.05),
+        metrics.ChipUsage([metrics.CoreUsage(2, 0, 34088157184)], 3.055),
+        metrics.ChipUsage([metrics.CoreUsage(3, 0, 34088157184)], 4.001),
     ]
     with mock.patch.object(
         device, "get_local_chips", return_value=(device.TpuChip.V4, 4)
